@@ -94,7 +94,11 @@ function reaper.GetSetMediaTrackInfo_String(tr, key, v, set)
 end
 function reaper.SetMediaTrackInfo_Value(tr, key, v) tr.val[key] = v return true end
 function reaper.GetMediaTrackInfo_Value(tr, key) return tr.val[key] or 0 end
-function reaper.TrackFX_AddByName(tr, name) tr.fx[#tr.fx + 1] = name return #tr.fx - 1 end
+function reaper.TrackFX_AddByName(tr, name)
+  if MOCK.no_fx and MOCK.no_fx[name] then return -1 end
+  tr.fx[#tr.fx + 1] = name
+  return #tr.fx - 1
+end
 
 -- itens
 function reaper.CountTrackMediaItems(tr) return #tr.items end
@@ -119,6 +123,11 @@ function reaper.GetActiveTake(it) return it.take end
 function reaper.MIDI_GetPPQPosFromProjQN(take, qn) return (qn - take.start_qn) * 960 end
 function reaper.MIDI_InsertNote(take, sel, mute, s, e, chan, pitch, vel)
   take.notes[#take.notes + 1] = { s = s, e = e, chan = chan, pitch = pitch, vel = vel }
+  return true
+end
+function reaper.MIDI_InsertCC(take, sel, mute, ppq, msg, chan, m2, m3)
+  take.ccs = take.ccs or {}
+  take.ccs[#take.ccs + 1] = { ppq = ppq, msg = msg, chan = chan, m2 = m2 }
   return true
 end
 function reaper.MIDI_Sort(take) take.sorted = true end
@@ -154,6 +163,7 @@ local ImGui = setmetatable({
   Button = function(_, label) return FRAME.click == label end,
   BeginCombo = function() return FRAME.select ~= nil end,
   Selectable = function(_, label) return FRAME.select ~= nil and label:find(FRAME.select, 1, true) == 1 end,
+  RadioButton = function(_, label) return FRAME.click == label end,
   Checkbox = function(_, label, v) if FRAME.toggle == label then return true, not v end return false, v end,
   InputInt = function(_, _, v) return false, v end,
   InputTextWithHint = function(_, _, _, v) if FRAME.search then return true, FRAME.search end return false, v end,

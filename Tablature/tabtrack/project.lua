@@ -208,7 +208,21 @@ local function delete_tagged(prefix)
   for _, t in ipairs(tracks_with_prefix(prefix)) do reaper.DeleteTrack(t.track) end
 end
 
-function M.build_midi_tracks(s, offset, add_synth)
+-- sound: "gm" (Apple DLS, General MIDI), "reasynth" ou "none".
+-- Devolve false se o General MIDI não estiver disponível e caiu para ReaSynth.
+local function add_instrument(tr, trk, sound)
+  if sound == "gm" then
+    if reaper.TrackFX_AddByName(tr, "DLSMusicDevice", false, -1) >= 0 then return true end
+    if trk.drums then return false end
+    reaper.TrackFX_AddByName(tr, "ReaSynth", false, -1)
+    return false
+  elseif sound == "reasynth" and not trk.drums then
+    reaper.TrackFX_AddByName(tr, "ReaSynth", false, -1)
+  end
+  return true
+end
+
+function M.build_midi_tracks(s, offset, sound)
   delete_tagged("midi:")
   local folder = M.find_track("folder")
   if folder then reaper.DeleteTrack(folder) end
@@ -224,6 +238,7 @@ function M.build_midi_tracks(s, offset, add_synth)
   local t_start = measure_time(offset)
   local t_end = measure_time(offset + #s.masterbars)
   local last
+  local gm_ok = true
 
   for ti, trk in ipairs(s.tracks) do
     if trk.note_count > 0 then
@@ -233,11 +248,13 @@ function M.build_midi_tracks(s, offset, add_synth)
       set_tag(tr, "midi:" .. ti)
       reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", string.format("%d · %s", ti, trk.name), true)
       reaper.SetMediaTrackInfo_Value(tr, "I_FOLDERDEPTH", 0)
-      if add_synth and not trk.drums then reaper.TrackFX_AddByName(tr, "ReaSynth", false, -1) end
+      if not add_instrument(tr, trk, sound) then gm_ok = false end
 
       local item = reaper.CreateNewMIDIItemInProj(tr, t_start, t_end, false)
       local take = reaper.GetActiveTake(item)
       local chan = trk.drums and 9 or 0
+      -- troca de programa: escolhe o instrumento General MIDI da faixa
+      reaper.MIDI_InsertCC(take, false, false, 0, 0xC0, chan, trk.program, 0)
       local open = {} -- nota soando por corda (para ligaduras)
 
       local function flush(key)
@@ -279,6 +296,7 @@ function M.build_midi_tracks(s, offset, add_synth)
   else
     reaper.SetMediaTrackInfo_Value(folder, "I_FOLDERDEPTH", 0)
   end
+  return gm_ok
 end
 
 ------------------------------------------------------------------------

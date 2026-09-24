@@ -160,10 +160,14 @@ function M.load_xml(data)
     local pitches = tuning and words(ctext(tuning, "Pitches")) or {}
     local iset = child(t, "InstrumentSet")
     local itype = iset and ctext(iset, "Type") or ""
+    local sounds = child(t, "Sounds")
+    local sound = sounds and sounds.children[1]
+    local midi = sound and child(sound, "MIDI")
     s.tracks[#s.tracks + 1] = {
       name = (ctext(t, "Name") or ""):gsub("%s+", " "),
       strings = #pitches,
       drums = itype:lower():find("drum") ~= nil,
+      program = midi and tonumber(ctext(midi, "Program")) or 0, -- instrumento General MIDI (0-127)
       note_count = 0,
     }
   end

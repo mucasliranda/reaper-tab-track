@@ -98,8 +98,10 @@ def build():
 </Automations></MasterTrack>
 <Tracks>
 <Track id="0"><Name><![CDATA[Guitarra | Solo]]></Name><InstrumentSet><Type>electricGuitar</Type></InstrumentSet>
+<Sounds><Sound><Name>Distortion Guitar</Name><MIDI><LSB>0</LSB><MSB>0</MSB><Program>30</Program></MIDI></Sound></Sounds>
 <Staves><Staff><Properties><Property name="Tuning"><Pitches>{tuning}</Pitches></Property></Properties></Staff></Staves></Track>
 <Track id="1"><Name><![CDATA[Bateria]]></Name><InstrumentSet><Type>drumKit</Type></InstrumentSet>
+<Sounds><Sound><Name>Drumkit</Name><MIDI><LSB>0</LSB><MSB>0</MSB><Program>0</Program></MIDI></Sound></Sounds>
 <Staves><Staff><Properties><Property name="Tuning"><Pitches>0 0 0 0 0 0</Pitches></Property></Properties></Staff></Staves></Track>
 </Tracks>
 <MasterBars>{"".join(master)}</MasterBars>
