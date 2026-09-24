@@ -1,7 +1,8 @@
 -- @description Tab Track: tablatura rítmica de arquivos Guitar Pro na timeline
--- @version 0.2.0
+-- @version 0.2.1
 -- @changelog
---   Som General MIDI (Apple DLS) com o instrumento de cada faixa, inclusive bateria
+--   Remove o Apple DLSMusicDevice: ele fazia o REAPER fechar ao tocar (macOS 26).
+--   Use "Recriar faixas" para tirar o plugin de projetos criados na 0.2.0.
 -- @author Tab Track
 -- @about
 --   Busca a música no Songsterr, detecta o arquivo Guitar Pro (.gp) baixado
@@ -59,7 +60,7 @@ local st = {
   opt_tempo = true,
   opt_markers = true,
   opt_midi = true,
-  sound = (reaper.GetOS():lower():find("mac") or reaper.GetOS():lower():find("osx")) and "gm" or "reasynth",
+  sound = "reasynth",
   opt_mute = true,
   watching = false,
   snapshot = {},
@@ -216,17 +217,12 @@ local function build_all()
 
     if st.opt_tempo then project.apply_tempo_map(s, offset) end
     if st.opt_markers then project.set_section_markers(s, offset) end
-    local gm_ok = true
-    if st.opt_midi then gm_ok = project.build_midi_tracks(s, offset, st.sound) end
+    if st.opt_midi then project.build_midi_tracks(s, offset, st.sound) end
     project.build_tab_track(s, ti, offset)
     project.show_instrument(ti, st.opt_mute)
 
     end_edit("Tab Track: criar faixas")
-    if gm_ok then
-      st.status, st.status_ok = "Faixas criadas.", true
-    else
-      st.status, st.status_ok = "Faixas criadas, mas o General MIDI (DLSMusicDevice) não foi encontrado: usei ReaSynth.", false
-    end
+    st.status, st.status_ok = "Faixas criadas.", true
   end)
 end
 
@@ -326,7 +322,6 @@ local function section_options()
   ImGui.BeginDisabled(ctx, not st.opt_midi)
   ImGui.Indent(ctx)
   ImGui.Text(ctx, "Som dos instrumentos:")
-  if ImGui.RadioButton(ctx, "General MIDI (Apple DLS, parecido com o player do Songsterr)", st.sound == "gm") then st.sound = "gm" end
   if ImGui.RadioButton(ctx, "ReaSynth (básico)", st.sound == "reasynth") then st.sound = "reasynth" end
   if ImGui.RadioButton(ctx, "Nenhum (vou colocar meus plugins)", st.sound == "none") then st.sound = "none" end
   ImGui.Unindent(ctx)

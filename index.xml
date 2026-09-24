@@ -11,7 +11,7 @@ e silenciar o MIDI dele para tocar junto.
 Requer ReaImGui e js_ReaScriptAPI (repositório ReaTeam Extensions).]]></description>
         <link rel="website">https://github.com/mucasliranda/reaper-tab-track</link>
       </metadata>
-      <version name="0.2.0" author="mucasliranda" time="2026-09-24T01:40:27Z">
+      <version name="0.2.1" author="mucasliranda" time="2026-09-24T01:49:37Z">
         <source main="main">https://raw.githubusercontent.com/mucasliranda/reaper-tab-track/main/Tablature/Tab%20Track.lua</source>
         <source file="tabtrack/gp.lua">https://raw.githubusercontent.com/mucasliranda/reaper-tab-track/main/Tablature/tabtrack/gp.lua</source>
         <source file="tabtrack/project.lua">https://raw.githubusercontent.com/mucasliranda/reaper-tab-track/main/Tablature/tabtrack/project.lua</source>

@@ -208,18 +208,12 @@ local function delete_tagged(prefix)
   for _, t in ipairs(tracks_with_prefix(prefix)) do reaper.DeleteTrack(t.track) end
 end
 
--- sound: "gm" (Apple DLS, General MIDI), "reasynth" ou "none".
--- Devolve false se o General MIDI não estiver disponível e caiu para ReaSynth.
+-- sound: "reasynth" ou "none".
+-- (O Apple DLSMusicDevice foi removido: ele derruba o REAPER no macOS 26.)
 local function add_instrument(tr, trk, sound)
-  if sound == "gm" then
-    if reaper.TrackFX_AddByName(tr, "DLSMusicDevice", false, -1) >= 0 then return true end
-    if trk.drums then return false end
-    reaper.TrackFX_AddByName(tr, "ReaSynth", false, -1)
-    return false
-  elseif sound == "reasynth" and not trk.drums then
+  if sound == "reasynth" and not trk.drums then
     reaper.TrackFX_AddByName(tr, "ReaSynth", false, -1)
   end
-  return true
 end
 
 function M.build_midi_tracks(s, offset, sound)
@@ -238,7 +232,6 @@ function M.build_midi_tracks(s, offset, sound)
   local t_start = measure_time(offset)
   local t_end = measure_time(offset + #s.masterbars)
   local last
-  local gm_ok = true
 
   for ti, trk in ipairs(s.tracks) do
     if trk.note_count > 0 then
@@ -248,7 +241,7 @@ function M.build_midi_tracks(s, offset, sound)
       set_tag(tr, "midi:" .. ti)
       reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", string.format("%d · %s", ti, trk.name), true)
       reaper.SetMediaTrackInfo_Value(tr, "I_FOLDERDEPTH", 0)
-      if not add_instrument(tr, trk, sound) then gm_ok = false end
+      add_instrument(tr, trk, sound)
 
       local item = reaper.CreateNewMIDIItemInProj(tr, t_start, t_end, false)
       local take = reaper.GetActiveTake(item)
@@ -296,7 +289,6 @@ function M.build_midi_tracks(s, offset, sound)
   else
     reaper.SetMediaTrackInfo_Value(folder, "I_FOLDERDEPTH", 0)
   end
-  return gm_ok
 end
 
 ------------------------------------------------------------------------

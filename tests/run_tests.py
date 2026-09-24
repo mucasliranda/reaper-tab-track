@@ -143,7 +143,8 @@ check(#g == 19, "notas da guitarra: " .. #g)
 local tied
 for _, n in ipairs(g) do if n.pitch == 67 and n.s == 7.5 * 960 then tied = n end end
 check(tied and tied.e == 9 * 960, "ligadura mesclada (sol 67 de 7,5 a 9 QN)")
-check(midis[1].fx[1] == "DLSMusicDevice" and midis[2].fx[1] == "DLSMusicDevice", "General MIDI em todas as faixas")
+for _, t in ipairs(MOCK.tracks) do for _, fx in ipairs(t.fx) do check(fx ~= "DLSMusicDevice", "DLSMusicDevice não pode ser usado") end end
+check(midis[1].fx[1] == "ReaSynth" and #midis[2].fx == 0, "ReaSynth só em instrumento melódico (padrão)")
 local cc1, cc2 = midis[1].items[1].take.ccs[1], midis[2].items[1].take.ccs[1]
 check(cc1.msg == 0xC0 and cc1.m2 == 30 and cc1.chan == 0 and cc1.ppq == 0, "programa 30 (Distortion Guitar) na guitarra")
 check(cc2.msg == 0xC0 and cc2.m2 == 0 and cc2.chan == 9, "programa da bateria no canal 10")
@@ -155,24 +156,15 @@ check(midis[1].val.B_MUTE == 1 and midis[2].val.B_MUTE == 0, "mute do instrument
 run_frames({ [1] = { toggle = "Silenciar o MIDI deste instrumento (tocar junto)" } }, 1)
 check(midis[1].val.B_MUTE == 0, "desmarcar tocar junto")
 
--- 4) recriar com ReaSynth não duplica nada e troca o som
-run_frames({ [1] = { click = "ReaSynth (básico)" }, [2] = { click = "Recriar faixas" } }, 3)
+-- 4) recriar sem instrumento não duplica nada e troca o som
+run_frames({ [1] = { click = "Nenhum (vou colocar meus plugins)" }, [2] = { click = "Recriar faixas" } }, 3)
 midis = tagged("midi:")
-check(midis[1].fx[1] == "ReaSynth" and #midis[2].fx == 0, "ReaSynth só em instrumento melódico")
+check(#midis[1].fx == 0 and #midis[2].fx == 0, "opção Nenhum sem plugins")
 check(count(tagged("tab:")) == 1 and count(tagged("midi:")) == 2 and count(tagged("folder")) == 1, "recriar duplicou faixas")
 check(#MOCK.tempo == 2, "recriar duplicou tempo")
 check(marker_names() == "Descida,Subida", "recriar duplicou marcadores: " .. marker_names())
 check(MOCK.pngs == 4, "recriar deveria reaproveitar as imagens")
 check(MOCK.ext["TabTrack/gp"]:find("/project/TabTrack/Tab Track%-Exercicio.gp$"), "cópia do .gp no projeto")
-
--- 5) sem DLSMusicDevice: cai para ReaSynth e avisa
-MOCK.no_fx = { DLSMusicDevice = true }
-run_frames({ [1] = { click = "General MIDI (Apple DLS, parecido com o player do Songsterr)" }, [2] = { click = "Recriar faixas" } }, 3)
-midis = tagged("midi:")
-check(midis[1].fx[1] == "ReaSynth", "fallback para ReaSynth")
-local warned = false
-for _, s in ipairs(TEXTS) do if s:find("DLSMusicDevice") then warned = true end end
-check(warned, "aviso quando o General MIDI não existe")
 ''')
     return report("música de exemplo (fixture)", L)
 
