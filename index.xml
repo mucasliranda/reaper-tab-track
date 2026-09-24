@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<index version="1" name="Tab Track">
+  <category name="Tablature">
+    <reapack name="Tab Track.lua" type="script" desc="Tab Track">
+      <metadata>
+        <description><![CDATA[Busca a música no Songsterr, detecta o arquivo Guitar Pro (.gp) baixado
+e cria no projeto uma faixa TAB rítmica sincronizada, faixas MIDI de cada
+instrumento e marcadores de seção. Permite trocar o instrumento exibido
+e silenciar o MIDI dele para tocar junto.
+
+Requer ReaImGui e js_ReaScriptAPI (repositório ReaTeam Extensions).]]></description>
+        <link rel="website">https://github.com/mucasliranda/reaper-tab-track</link>
+      </metadata>
+      <version name="0.1.0" author="mucasliranda" time="2026-09-24T01:15:31Z">
+        <source main="main">https://raw.githubusercontent.com/mucasliranda/reaper-tab-track/main/Tablature/Tab%20Track.lua</source>
+        <source file="tabtrack/gp.lua">https://raw.githubusercontent.com/mucasliranda/reaper-tab-track/main/Tablature/tabtrack/gp.lua</source>
+        <source file="tabtrack/project.lua">https://raw.githubusercontent.com/mucasliranda/reaper-tab-track/main/Tablature/tabtrack/project.lua</source>
+        <source file="tabtrack/render.lua">https://raw.githubusercontent.com/mucasliranda/reaper-tab-track/main/Tablature/tabtrack/render.lua</source>
+      </version>
+    </reapack>
+  </category>
+</index>

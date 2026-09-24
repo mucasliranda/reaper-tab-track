@@ -1,0 +1,5 @@
+*.gp
+!tests/fixture.gp
+__pycache__/
+.venv/
+.DS_Store
