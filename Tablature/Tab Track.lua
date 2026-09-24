@@ -1,8 +1,8 @@
 -- @description Tab Track: tablatura rítmica de arquivos Guitar Pro na timeline
--- @version 0.2.1
+-- @version 0.3.0
 -- @changelog
---   Remove o Apple DLSMusicDevice: ele fazia o REAPER fechar ao tocar (macOS 26).
---   Use "Recriar faixas" para tirar o plugin de projetos criados na 0.2.0.
+--   Importa o áudio baixado do Songsterr (WAV ou MP3) numa faixa alinhada à TAB,
+--   com ajuste fino em milissegundos e opção de silenciar o MIDI.
 -- @author Tab Track
 -- @about
 --   Busca a música no Songsterr, detecta o arquivo Guitar Pro (.gp) baixado
@@ -53,6 +53,10 @@ local ctx = ImGui.CreateContext("Tab Track")
 local st = {
   search = "",
   gp_path = nil,        -- arquivo carregado
+  audio_path = nil,     -- WAV/MP3 do Songsterr (opcional)
+  opt_audio = true,
+  opt_audio_only = true, -- silenciar o MIDI quando houver áudio
+  nudge = 0,            -- ajuste do áudio em ms
   score = nil,
   load_error = nil,
   selected = nil,       -- instrumento (índice)
@@ -86,7 +90,13 @@ local function downloads_dir()
   return home .. project.sep() .. "Downloads"
 end
 
-local function list_gp_files()
+local function file_kind(f)
+  local ext = f:lower():match("%.(%w+)$")
+  if ext == "gp" then return "gp" end
+  if ext == "wav" or ext == "mp3" then return "audio" end
+end
+
+local function list_download_files()
   local dir = downloads_dir()
   local files = {}
   reaper.EnumerateFiles(dir, -1) -- limpa o cache da pasta
@@ -94,14 +104,14 @@ local function list_gp_files()
   while true do
     local f = reaper.EnumerateFiles(dir, i)
     if not f then break end
-    if f:lower():match("%.gp$") then files[f] = true end
+    if file_kind(f) then files[f] = true end
     i = i + 1
   end
   return files
 end
 
 local function start_watching()
-  st.snapshot = list_gp_files()
+  st.snapshot = list_download_files()
   st.watching = true
 end
 
@@ -140,18 +150,21 @@ local function load_gp(path)
   return true
 end
 
+-- Vigia Downloads: carrega o .gp e o WAV/MP3 que aparecerem depois do início.
+-- Continua aguardando até ter os dois (ou o usuário parar).
 local function check_downloads()
   if not st.watching then return end
   local now = reaper.time_precise()
   if now - st.last_scan < 1 then return end
   st.last_scan = now
-  for f in pairs(list_gp_files()) do
+  for f in pairs(list_download_files()) do
     if not st.snapshot[f] then
-      st.watching = false
-      load_gp(downloads_dir() .. project.sep() .. f)
-      return
+      st.snapshot[f] = true
+      local path = downloads_dir() .. project.sep() .. f
+      if file_kind(f) == "gp" then load_gp(path) else st.audio_path = path end
     end
   end
+  if st.score and st.audio_path then st.watching = false end
 end
 
 -- Ao abrir (ou trocar de) projeto, recarrega a música salva nele.
@@ -159,10 +172,13 @@ local function sync_with_project()
   local key = tostring((reaper.EnumProjects(-1)))
   if key == st.project_key then return end
   st.project_key = key
-  st.score, st.gp_path, st.selected = nil, nil, nil
+  st.score, st.gp_path, st.selected, st.audio_path = nil, nil, nil, nil
   st.offset = tonumber(project.get_state("offset") or "") or 1
+  st.nudge = tonumber(project.get_state("nudge") or "") or 0
   local saved = project.get_state("gp")
   if saved and reaper.file_exists(saved) then load_gp(saved) end
+  local audio = project.get_state("audio")
+  if audio and reaper.file_exists(audio) then st.audio_path = audio end
 end
 
 ------------------------------------------------------------------------
@@ -220,6 +236,16 @@ local function build_all()
     if st.opt_midi then project.build_midi_tracks(s, offset, st.sound) end
     project.build_tab_track(s, ti, offset)
     project.show_instrument(ti, st.opt_mute)
+
+    if st.audio_path and st.opt_audio then
+      local aname = st.audio_path:match("([^/\\]+)$")
+      local astored = project.base_dir() .. project.sep() .. aname
+      if project.copy_file(st.audio_path, astored) then st.audio_path = astored end
+      project.set_state("audio", st.audio_path)
+      project.set_state("nudge", tostring(st.nudge))
+      project.import_audio(st.audio_path, offset, st.nudge)
+    end
+    project.set_midi_muted(st.opt_audio_only and project.has_audio_track())
 
     end_edit("Tab Track: criar faixas")
     st.status, st.status_ok = "Faixas criadas.", true
@@ -281,8 +307,38 @@ local function section_file()
   ImGui.SameLine(ctx)
   if ImGui.Button(ctx, "Escolher arquivo…") then
     local ok, path = reaper.GetUserFileNameForRead(downloads_dir() .. project.sep(), "Abrir arquivo Guitar Pro", "gp")
-    if ok then st.watching = false; load_gp(path) end
+    if ok then load_gp(path) end
   end
+
+  ImGui.Spacing(ctx)
+  if st.audio_path then
+    ImGui.TextColored(ctx, COL_OK, "Áudio: " .. st.audio_path:match("([^/\\]+)$"))
+  else
+    ImGui.TextColored(ctx, COL_MUTED, "Áudio (opcional): baixe o WAV ou MP3 no site")
+  end
+  if ImGui.Button(ctx, "Escolher áudio…") then
+    local ok, path = reaper.GetUserFileNameForRead(downloads_dir() .. project.sep(), "Abrir áudio do Songsterr", "wav;*.mp3")
+    if ok and file_kind(path) == "audio" then st.audio_path = path end
+  end
+end
+
+local function section_audio()
+  if not st.audio_path then return end
+  ImGui.SeparatorText(ctx, "Áudio do Songsterr")
+  local rv
+  rv, st.opt_audio = ImGui.Checkbox(ctx, "Importar o áudio numa faixa", st.opt_audio)
+  rv, st.opt_audio_only = ImGui.Checkbox(ctx, "Tocar só o áudio (silenciar o MIDI)", st.opt_audio_only)
+  if rv then project.set_midi_muted(st.opt_audio_only and project.has_audio_track()) end
+  ImGui.SetNextItemWidth(ctx, 100)
+  rv, st.nudge = ImGui.InputInt(ctx, "Ajuste do áudio (ms)", st.nudge, 10, 100)
+  ImGui.SameLine(ctx)
+  ImGui.BeginDisabled(ctx, not project.has_audio_track())
+  if ImGui.Button(ctx, "Aplicar ajuste") then
+    project.reposition_audio(st.offset - 1, st.nudge)
+    project.set_state("nudge", tostring(st.nudge))
+  end
+  ImGui.EndDisabled(ctx)
+  ImGui.TextColored(ctx, COL_MUTED, "Negativo adianta o áudio. Use se ele não bater com a TAB.")
 end
 
 local function section_instrument()
@@ -357,6 +413,7 @@ local function loop()
     section_file()
     if st.score then
       section_instrument()
+      section_audio()
       section_options()
       section_build()
     end

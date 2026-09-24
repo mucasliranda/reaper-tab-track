@@ -292,6 +292,55 @@ function M.build_midi_tracks(s, offset, sound)
 end
 
 ------------------------------------------------------------------------
+-- Áudio do Songsterr (WAV/MP3)
+------------------------------------------------------------------------
+local function audio_position(offset, nudge_ms)
+  return math.max(0, measure_time(offset) + (nudge_ms or 0) / 1000)
+end
+
+function M.import_audio(path, offset, nudge_ms)
+  local tr = M.find_track("audio")
+  if not tr then
+    local idx = 0
+    for i = 0, reaper.CountTracks(0) - 1 do
+      local tag = track_tag(reaper.GetTrack(0, i))
+      if tag:sub(1, 4) == "tab:" then idx = i + 1 end
+    end
+    reaper.InsertTrackAtIndex(idx, true)
+    tr = reaper.GetTrack(0, idx)
+    set_tag(tr, "audio")
+  end
+  reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "Áudio · Songsterr", true)
+  clear_items(tr)
+
+  local cursor = reaper.GetCursorPosition()
+  reaper.SetOnlyTrackSelected(tr)
+  reaper.SetEditCurPos(audio_position(offset, nudge_ms), false, false)
+  reaper.InsertMedia(path, 0)
+  reaper.SetEditCurPos(cursor, false, false)
+  return tr
+end
+
+function M.reposition_audio(offset, nudge_ms)
+  local tr = M.find_track("audio")
+  if not tr or reaper.CountTrackMediaItems(tr) == 0 then return false end
+  reaper.SetMediaItemInfo_Value(reaper.GetTrackMediaItem(tr, 0), "D_POSITION", audio_position(offset, nudge_ms))
+  reaper.UpdateArrange()
+  return true
+end
+
+function M.has_audio_track()
+  local tr = M.find_track("audio")
+  return tr ~= nil and reaper.CountTrackMediaItems(tr) > 0
+end
+
+-- Silencia a pasta MIDI inteira (quando o áudio do Songsterr faz o acompanhamento).
+function M.set_midi_muted(muted)
+  local folder = M.find_track("folder")
+  if folder then reaper.SetMediaTrackInfo_Value(folder, "B_MUTE", muted and 1 or 0) end
+end
+
+------------------------------------------------------------------------
 -- Troca de instrumento
 ------------------------------------------------------------------------
 function M.show_instrument(ti, mute_selected)

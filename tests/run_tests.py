@@ -97,15 +97,23 @@ def test_fixture():
     dl = tmp / "home" / "Downloads"
     L.globals().FIXTURE = str(fixture)
     L.globals().DLFILE = str(dl / "Tab Track-Exercicio.gp")
+    L.globals().DLAUDIO = str(dl / "Tab Track-Exercicio.wav")
+    (tmp / "audio.wav").write_bytes(b"RIFF....WAVE")
+    L.globals().AUDIOSRC = str(tmp / "audio.wav")
     run_main(L)
     L.execute('''
 -- 1) busca: abre o Songsterr e passa a vigiar Downloads
 run_frames({ [2] = { search = "tab track exercicio" } }, 2)
 check(MOCK.urls[1] == "https://www.songsterr.com/?pattern=tab%20track%20exercicio", "URL de busca: " .. tostring(MOCK.urls[1]))
 
--- 2) o download aparece e é carregado sozinho
+-- 2) o download aparece e é carregado sozinho (primeiro o .gp, depois o áudio)
 PY.copy(FIXTURE, DLFILE)
 run_frames({}, 3)
+PY.copy(AUDIOSRC, DLAUDIO)
+run_frames({}, 3)
+local audio_seen = false
+for _, s in ipairs(TEXTS) do if s:find("Áudio: Tab Track%-Exercicio.wav") then audio_seen = true end end
+check(audio_seen, "áudio baixado não foi detectado")
 local loaded = false
 for _, s in ipairs(TEXTS) do if s:find("Carregado: Tab Track%-Exercicio.gp") then loaded = true end end
 check(loaded, "arquivo baixado não foi detectado")
@@ -151,6 +159,17 @@ check(cc2.msg == 0xC0 and cc2.m2 == 0 and cc2.chan == 9, "programa da bateria no
 local d = midis[2].items[1].take.notes
 check(#d == 16 and d[1].chan == 9, "bateria no canal 10")
 
+-- áudio do Songsterr: faixa própria, no compasso 1, MIDI silenciado
+local audio = tagged("audio")["audio"]
+check(audio and #audio.items == 1, "faixa de áudio com 1 item")
+check(audio and audio.items[1].file:find("/project/TabTrack/Tab Track%-Exercicio.wav$"), "áudio copiado para o projeto")
+check(audio and audio.items[1].val.D_POSITION == 0, "áudio no compasso 1")
+check(tagged("folder")["folder"].val.B_MUTE == 1, "MIDI silenciado quando há áudio")
+check(MOCK.cursor == 0, "cursor restaurado")
+
+-- ajuste fino: +120 ms
+run_frames({ [1] = { click = "Aplicar ajuste", nudge = 120 } }, 1)
+
 -- instrumento escolhido fica mudo, o resto toca
 check(midis[1].val.B_MUTE == 1 and midis[2].val.B_MUTE == 0, "mute do instrumento escolhido")
 run_frames({ [1] = { toggle = "Silenciar o MIDI deste instrumento (tocar junto)" } }, 1)
@@ -160,6 +179,12 @@ check(midis[1].val.B_MUTE == 0, "desmarcar tocar junto")
 run_frames({ [1] = { click = "Nenhum (vou colocar meus plugins)" }, [2] = { click = "Recriar faixas" } }, 3)
 midis = tagged("midi:")
 check(#midis[1].fx == 0 and #midis[2].fx == 0, "opção Nenhum sem plugins")
+audio = tagged("audio")["audio"]
+check(count(tagged("audio")) == 1 and #audio.items == 1, "recriar duplicou o áudio")
+check(math.abs(audio.items[1].val.D_POSITION - 0.12) < 1e-9, "ajuste de 120 ms mantido ao recriar")
+check(tagged("folder")["folder"].val.B_MUTE == 1, "MIDI continua silenciado ao recriar")
+run_frames({ [1] = { toggle = "Tocar só o áudio (silenciar o MIDI)" } }, 1)
+check(tagged("folder")["folder"].val.B_MUTE == 0, "desmarcar volta o MIDI")
 check(count(tagged("tab:")) == 1 and count(tagged("midi:")) == 2 and count(tagged("folder")) == 1, "recriar duplicou faixas")
 check(#MOCK.tempo == 2, "recriar duplicou tempo")
 check(marker_names() == "Descida,Subida", "recriar duplicou marcadores: " .. marker_names())

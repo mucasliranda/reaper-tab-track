@@ -10,6 +10,8 @@ da timeline, sincronizada com o projeto, a partir de arquivos Guitar Pro 7/8
 - Cria a faixa **TAB** do instrumento escolhido: um item por compasso, com a tab desenhada
 - Aplica andamento e fórmulas de compasso do arquivo e cria marcadores de seção
 - Gera faixas **MIDI** de todos os instrumentos (com ReaSynth opcional)
+- Importa o áudio baixado do Songsterr (**WAV** ou **MP3**) numa faixa alinhada à TAB,
+  com ajuste fino em milissegundos
 - Troca o instrumento exibido e silencia o MIDI dele para você tocar junto
 
 ## Instalação (ReaPack)
@@ -24,7 +26,7 @@ da timeline, sincronizada com o projeto, a partir de arquivos Guitar Pro 7/8
 
 1. Salve o projeto (as imagens da tab ficam na pasta dele, em `TabTrack/`)
 2. *Actions → Tab Track*
-3. Busque a música, baixe o arquivo **Guitar Pro** no Songsterr
+3. Busque a música e baixe o arquivo **Guitar Pro** no Songsterr (e, se quiser, o **WAV** ou **MP3**)
 4. Escolha o instrumento e clique em **Criar faixas**
 
 ## Desenvolvimento

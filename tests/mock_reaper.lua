@@ -112,6 +112,19 @@ function reaper.SetMediaItemInfo_Value(it, key, v) it.val[key] = v return true e
 function reaper.GetItemStateChunk(it) return true, it.chunk or "<ITEM\nPOSITION 0\n>\n" end
 function reaper.SetItemStateChunk(it, c) it.chunk = c return true end
 
+-- seleção, cursor e InsertMedia (áudio)
+MOCK.cursor = 0
+function reaper.SetOnlyTrackSelected(tr) MOCK.selected_track = tr end
+function reaper.GetCursorPosition() return MOCK.cursor end
+function reaper.SetEditCurPos(t) MOCK.cursor = t end
+function reaper.InsertMedia(file, mode)
+  assert(mode == 0, "InsertMedia deveria usar a faixa selecionada")
+  local it = reaper.AddMediaItemToTrack(MOCK.selected_track)
+  it.val.D_POSITION = MOCK.cursor
+  it.file = file
+  return 1
+end
+
 -- MIDI
 function reaper.CreateNewMIDIItemInProj(tr, t0, t1)
   local it = reaper.AddMediaItemToTrack(tr)
@@ -165,7 +178,7 @@ local ImGui = setmetatable({
   Selectable = function(_, label) return FRAME.select ~= nil and label:find(FRAME.select, 1, true) == 1 end,
   RadioButton = function(_, label) return FRAME.click == label end,
   Checkbox = function(_, label, v) if FRAME.toggle == label then return true, not v end return false, v end,
-  InputInt = function(_, _, v) return false, v end,
+  InputInt = function(_, label, v) if FRAME.nudge and label:find("Ajuste") then return true, FRAME.nudge end return false, v end,
   InputTextWithHint = function(_, _, _, v) if FRAME.search then return true, FRAME.search end return false, v end,
   TextColored = function(_, _, s) TEXTS[#TEXTS + 1] = s end,
 }, { __index = function() return function() end end })
